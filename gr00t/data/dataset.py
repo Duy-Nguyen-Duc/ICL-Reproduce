@@ -24,6 +24,7 @@ In this file, we define 3 types of datasets:
 See `scripts/load_dataset.py` for examples on how to use these datasets.
 """
 
+import os
 import hashlib
 import json
 from collections import defaultdict
@@ -906,9 +907,31 @@ class CachedLeRobotSingleDataset(LeRobotSingleDataset):
         super().__init__(*args, **kwargs)
         cached_frames: dict[str, np.ndarray] = {}
 
-        cached_frames_path = self.dataset_path / ".cache/frames.pt"
-        if cached_frames_path.exists():
-            cached_frames = torch.load(cached_frames_path)
+        # Cache location is configurable through GR00T_FRAME_CACHE_DIR:
+        #   "memory" (or "none") keeps the decoded frames in RAM only, which is the
+        #   right choice when disk quota is tighter than the frame cache;
+        #   any other value is used as the cache directory.
+        # Unset preserves the original <dataset_path>/.cache behaviour.
+        cache_dir_env = os.environ.get("GR00T_FRAME_CACHE_DIR", "")
+        in_memory_only = cache_dir_env.lower() in ("memory", "none")
+        cache_dir = (
+            self.dataset_path / ".cache"
+            if in_memory_only or not cache_dir_env
+            else Path(cache_dir_env)
+        )
+
+        video_keys = [key.replace("video.", "") for key in self.modality_keys["video"]]
+        legacy_path = cache_dir / "frames.pt"
+        npy_paths = {key: cache_dir / f"frames_{key}.npy" for key in video_keys}
+
+        if not in_memory_only and legacy_path.exists():
+            cached_frames = torch.load(legacy_path, weights_only=False)
+            print("> Loaded cached frames.")
+        elif not in_memory_only and all(path.exists() for path in npy_paths.values()):
+            # Memory-mapped so several processes share one copy of the frames.
+            cached_frames = {
+                key: np.load(path, mmap_mode="r") for key, path in npy_paths.items()
+            }
             print("> Loaded cached frames.")
         else:
             for key in self.modality_keys["video"]:
@@ -934,7 +957,15 @@ class CachedLeRobotSingleDataset(LeRobotSingleDataset):
                     all_frames.append(frames)
                 cached_frames[key] = np.concatenate(all_frames, axis=0)
                 print(f"{key}: {cached_frames[key].shape}")
-            torch.save(cached_frames, cached_frames_path, pickle_protocol=4)
+            if not in_memory_only:
+                cache_dir.mkdir(parents=True, exist_ok=True)
+                # One .npy per camera rather than a single pickle: the combined
+                # array is far past what a torch.save archive handles comfortably.
+                for key, path in npy_paths.items():
+                    np.save(path, cached_frames[key])
+                cached_frames = {
+                    key: np.load(path, mmap_mode="r") for key, path in npy_paths.items()
+                }
         self.cached_frames = cached_frames
         self.start_indices = np.cumsum(self.trajectory_lengths) - self.trajectory_lengths
 
@@ -1346,6 +1377,6 @@ class LeRobotMixtureDataset(Dataset):
         torch.save(self.merged_metadata, f"{metadata_dir}/metadata.pt")
 
     def load_metadata(self, metadata_dir: str) -> None:
-        self.merged_metadata = torch.load(f"{metadata_dir}/metadata.pt")
+        self.merged_metadata = torch.load(f"{metadata_dir}/metadata.pt", weights_only=False)
         for dataset in self.datasets:
             dataset.set_transforms_metadata(self.merged_metadata[dataset.tag])

@@ -1,0 +1,42 @@
+[
+ {
+  "axis": "Objects Layout",
+  "task": "KITCHEN_SCENE6_put_the_yellow_and_white_mug_in_the_microwave_and_close_it_add_3"
+ },
+ {
+  "axis": "Language Instructions",
+  "task": "LIVING_ROOM_SCENE6_put_the_white_mug_on_the_plate_and_put_the_chocolate_pudding_to_the_right_of_the_plate_language_13_view_0_0_100_0_0_initstate_0"
+ },
+ {
+  "axis": "Light Conditions",
+  "task": "KITCHEN_SCENE6_put_the_yellow_and_white_mug_in_the_microwave_and_close_it_light_4"
+ },
+ {
+  "axis": "Robot Initial States",
+  "task": "KITCHEN_SCENE3_turn_on_the_stove_and_put_the_moka_pot_on_it_view_0_0_100_0_0_initstate_163"
+ },
+ {
+  "axis": "Sensor Noise",
+  "task": "STUDY_SCENE1_pick_up_the_book_and_place_it_in_the_back_compartment_of_the_caddy_view_0_0_100_0_0_initstate_0_noise_7"
+ },
+ {
+  "axis": "Camera Viewpoints",
+  "task": "KITCHEN_SCENE8_put_both_moka_pots_on_the_stove_view_0_0_100_356_8_initstate_0"
+ },
+ {
+  "axis": "Background Textures",
+  "task": "KITCHEN_SCENE8_put_both_moka_pots_on_the_stove_table_24"
+ },
+ {
+  "axis": "Objects Layout",
+  "task": "KITCHEN_SCENE3_turn_on_the_stove_and_put_the_moka_pot_on_it_add_14"
+ },
+ {
+  "axis": "Language Instructions",
+  "task": "KITCHEN_SCENE8_put_both_moka_pots_on_the_stove_language_5_view_0_0_100_0_0_initstate_0"
+ },
+ {
+  "axis": "Light Conditions",
+  "task": "KITCHEN_SCENE8_put_both_moka_pots_on_the_stove_light_16"
+ }
+]

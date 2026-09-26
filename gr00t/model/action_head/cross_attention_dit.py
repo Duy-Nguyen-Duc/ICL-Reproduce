@@ -154,6 +154,7 @@ class BasicTransformerBlock(nn.Module):
         encoder_hidden_states: Optional[torch.Tensor] = None,
         encoder_attention_mask: Optional[torch.Tensor] = None,
         temb: Optional[torch.LongTensor] = None,
+        position_ids: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
 
         # 0. Self-Attention
@@ -163,13 +164,22 @@ class BasicTransformerBlock(nn.Module):
             norm_hidden_states = self.norm1(hidden_states)
 
         if self.pos_embed is not None:
-            norm_hidden_states = self.pos_embed(norm_hidden_states)
+            if position_ids is None:
+                norm_hidden_states = self.pos_embed(norm_hidden_states)
+            else:
+                norm_hidden_states = norm_hidden_states + self.pos_embed.pe[0][position_ids]
+
+        mask = encoder_attention_mask if encoder_hidden_states is not None else attention_mask
+        if mask is not None and mask.ndim == 2:
+            # Diffusers attention expects an additive bias, not a 0/1 token mask.
+            mask = torch.zeros_like(mask, dtype=norm_hidden_states.dtype).masked_fill(
+                ~mask.bool(), float("-inf")
+            )[:, None, :]
 
         attn_output = self.attn1(
             norm_hidden_states,
             encoder_hidden_states=encoder_hidden_states,
-            attention_mask=attention_mask,
-            # encoder_attention_mask=encoder_attention_mask,
+            attention_mask=mask,
         )
         if self.final_dropout:
             attn_output = self.final_dropout(attn_output)
@@ -359,14 +369,20 @@ class SelfAttentionTransformer(ModelMixin, ConfigMixin):
         self,
         hidden_states: torch.Tensor,  # Shape: (B, T, D)
         return_all_hidden_states: bool = False,
+        attention_mask: Optional[torch.Tensor] = None,
     ):
         # Process through transformer blocks - single pass through the blocks
         hidden_states = hidden_states.contiguous()
         all_hidden_states = [hidden_states]
+        position_ids = None
+        if attention_mask is not None:
+            position_ids = (attention_mask.long().cumsum(-1) - 1).clamp_min(0)
 
         # Process through transformer blocks
         for idx, block in enumerate(self.transformer_blocks):
-            hidden_states = block(hidden_states)
+            hidden_states = block(
+                hidden_states, attention_mask=attention_mask, position_ids=position_ids
+            )
             all_hidden_states.append(hidden_states)
 
         if return_all_hidden_states:

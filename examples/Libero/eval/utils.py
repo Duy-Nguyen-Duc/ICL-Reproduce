@@ -13,7 +13,7 @@ DATE = time.strftime("%Y_%m_%d")
 DATE_TIME = time.strftime("%Y_%m_%d-%H_%M_%S")
 
 
-def get_libero_env(task, resolution=256):
+def get_libero_env(task, resolution=256, horizon=None):
     """Initializes and returns the LIBERO environment, along with the task description."""
     task_description = task.language
     task_bddl_file = os.path.join(
@@ -24,6 +24,8 @@ def get_libero_env(task, resolution=256):
         "camera_heights": resolution,
         "camera_widths": resolution,
     }
+    if horizon is not None:
+        env_args["horizon"] = horizon
     env = OffScreenRenderEnv(**env_args)
     env.seed(
         0
